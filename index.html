@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RentSpot - Dynamic Rental Platform</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .mobile-container {
+            max-width: 480px;
+            margin: 0 auto;
+            background: #f3f4f6;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            box-shadow: 0 0 50px rgba(0,0,0,0.1);
+        }
+        
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        
+        .role-gradient-bachelor {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .role-gradient-family {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .role-gradient-business {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .role-gradient-owner {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        
+        .map-container {
+            height: 300px;
+            width: 100%;
+            z-index: 1;
+        }
+        
+        .slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .pulse-ring {
+            animation: pulseRing 2s infinite;
+        }
+        
+        @keyframes pulseRing {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            100% { transform: scale(1.2); opacity: 0; }
+        }
+        
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            max-width: 480px;
+            width: 100%;
+            z-index: 50;
+        }
+        
+        .property-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .property-card:active {
+            transform: scale(0.98);
+        }
+
+        .role-option {
+            transition: all 0.2s ease;
+        }
+        
+        .role-option:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        
+        // Icons Component
+        const Icon = ({ name, size = 24, className = "" }) => {
+            const icons = {
+                home: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+                search: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
+                user: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+                map: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg>,
+                list: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>,
+                filter: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>,
+                heart: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>,
+                star: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+                location: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>,
+                check: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="20 6 9 17 4 12"/></svg>,
+                x: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
+                bell: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>,
+                camera: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>,
+                menu: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>,
+                arrowLeft: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>,
+                briefcase: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
+                users: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+                building: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>,
+                plus: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="M12 5v14"/></svg>,
+                edit: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+                trash: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>,
+                message: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+                phone: <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            };
+            return icons[name] || null;
+        };
+
+        // Mock Data
+        const MOCK_PROPERTIES = [
+            {
+                id: 1,
+                type: 'room',
+                title: 'Cozy Studio Apartment',
+                price: 800,
+                location: { lat: 40.7128, lng: -74.0060, address: '123 Main St, New York' },
+                images: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400'],
+                amenities: ['WiFi', 'AC', 'Furnished'],
+                owner: 'John Doe',
+                rating: 4.5,
+                reviews: 12,
+                available: true,
+                beds: 1,
+                baths: 1,
+                sqft: 450,
+                description: 'Perfect for bachelors, fully furnished studio with modern amenities.'
+            },
+            {
+                id: 2,
+                type: 'house',
+                title: 'Family Home with Garden',
+                price: 2500,
+                location: { lat: 40.7200, lng: -74.0100, address: '456 Oak Ave, New York' },
+                images: ['https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400'],
+                amenities: ['Garden', 'Parking', 'Pet Friendly', 'Furnished'],
+                owner: 'Sarah Smith',
+                rating: 4.8,
+                reviews: 24,
+                available: true,
+                beds: 3,
+                baths: 2,
+                sqft: 1800,
+                description: 'Spacious family home with backyard, perfect for families with kids.'
+            },
+            {
+                id: 3,
+                type: 'shop',
+                title: 'Prime Retail Space',
+                price: 3500,
+                location: { lat: 40.7150, lng: -74.0050, address: '789 Broadway, New York' },
+                images: ['https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400'],
+                amenities: ['High Foot Traffic', 'Storage', 'Parking'],
+                owner: 'Mike Johnson',
+                rating: 4.6,
+                reviews: 8,
+                available: true,
+                size: '1200 sqft',
+                businessType: 'Retail',
+                description: 'High visibility retail space in busy commercial district.'
+            },
+            {
+                id: 4,
+                type: 'room',
+                title: 'Modern Bachelor Pad',
+                price: 950,
+                location: { lat: 40.7100, lng: -74.0080, address: '321 Elm St, New York' },
+                images: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400'],
+                amenities: ['Gym', 'Pool', 'WiFi'],
+                owner: 'Emily Chen',
+                rating: 4.3,
+                reviews: 15,
+                available: true,
+                beds: 1,
+                baths: 1,
+                sqft: 550,
+                description: 'Luxury amenities included, perfect for young professionals.'
+            },
+            {
+                id: 5,
+                type: 'shop',
+                title: 'Office Space Downtown',
+                price: 2800,
+                location: { lat: 40.7180, lng: -74.0020, address: '555 Wall St, New York' },
+                images: ['https://images.unsplash.com/photo-1497366216548-37526070297c?w=400'],
+                amenities: ['Conference Room', '24/7 Access', 'Security'],
+                owner: 'David Brown',
+                rating: 4.7,
+                reviews: 18,
+                available: true,
+                size: '800 sqft',
+                businessType: 'Office',
+                description: 'Professional office space in financial district.'
+            }
+        ];
+
+        const MOCK_BOOKINGS = [
+            { id: 1, propertyId: 1, status: 'pending', date: '2024-02-20', tenant: 'Alex Wilson' },
+            { id: 2, propertyId: 2, status: 'approved', date: '2024-02-18', tenant: 'Maria Garcia' }
+        ];
+
+        // FIXED Role Selector Component
+        const RoleSelector = ({ currentRole, onSelectRole, isOpen, onClose }) => {
+            const roles = [
+                { id: 'bachelor', label: 'Bachelor', icon: 'user', color: 'role-gradient-bachelor', desc: 'Find rooms & shared spaces' },
+                { id: 'family', label: 'Family', icon: 'users', color: 'role-gradient-family', desc: 'Discover family homes' },
+                { id: 'business', label: 'Business User', icon: 'briefcase', color: 'role-gradient-business', desc: 'Rent commercial spaces' },
+                { id: 'owner', label: 'Property Owner', icon: 'building', color: 'role-gradient-owner', desc: 'Manage your listings' }
+            ];
+
+            if (!isOpen) return null;
+
+            const handleRoleClick = (roleId) => {
+                console.log('Selecting role:', roleId);
+                onSelectRole(roleId);
+                onClose();
+            };
+
+            return (
+                <div 
+                    className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" 
+                    style={{ backdropFilter: 'blur(4px)' }}
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) onClose();
+                    }}
+                >
+                    <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl slide-up">
+                        <div className="p-6 bg-gray-50 border-b">
+                            <h2 className="text-xl font-bold text-gray-800">Select Your Role</h2>
+                            <p className="text-sm text-gray-600 mt-1">Switch between different modes</p>
+                        </div>
+                        <div className="p-4 space-y-3">
+                            {roles.map(role => (
+                                <button
+                                    key={role.id}
+                                    onClick={() => handleRoleClick(role.id)}
+                                    className={`role-option w-full p-4 rounded-xl flex items-center gap-4 border-2 ${currentRole === role.id ? 'border-gray-900 bg-gray-50' : 'border-transparent hover:bg-gray-50'}`}
+                                >
+                                    <div className={`w-12 h-12 rounded-full ${role.color} flex items-center justify-center text-white shadow-lg flex-shrink-0`}>
+                                        <Icon name={role.icon} size={24} />
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                        <h3 className="font-semibold text-gray-900 text-lg">{role.label}</h3>
+                                        <p className="text-sm text-gray-500">{role.desc}</p>
+                                    </div>
+                                    {currentRole === role.id && (
+                                        <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center flex-shrink-0">
+                                            <Icon name="check" size={18} className="text-white" />
+                                        </div>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="p-4 border-t bg-gray-50">
+                            <button 
+                                onClick={onClose}
+                                className="w-full py-3 bg-white border border-gray-300 rounded-xl font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Map Component
+        const MapView = ({ properties, onSelectProperty, userLocation }) => {
+            const mapRef = useRef(null);
+            const mapInstanceRef = useRef(null);
+
+            useEffect(() => {
+                if (!mapRef.current || mapInstanceRef.current) return;
+                
+                mapInstanceRef.current = L.map(mapRef.current).setView([userLocation.lat, userLocation.lng], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap'
+                }).addTo(mapInstanceRef.current);
+
+                // Add user location
+                const userIcon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div style="width: 16px; height: 16px; background: #3b82f6; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" class="pulse-ring"></div>`,
+                    iconSize: [16, 16]
+                });
+                L.marker([userLocation.lat, userLocation.lng], { icon: userIcon }).addTo(mapInstanceRef.current);
+
+            }, [userLocation]);
+
+            useEffect(() => {
+                if (!mapInstanceRef.current) return;
+                
+                // Clear existing property markers (keep user marker)
+                mapInstanceRef.current.eachLayer(layer => {
+                    if (layer instanceof L.Marker && layer.options.icon?.options?.className === 'property-marker') {
+                        mapInstanceRef.current.removeLayer(layer);
+                    }
+                });
+
+                // Add property markers
+                properties.forEach(prop => {
+                    const isShop = prop.type === 'shop';
+                    const color = isShop ? '#3b82f6' : '#8b5cf6';
+                    
+                    const icon = L.divIcon({
+                        className: 'property-marker',
+                        html: `<div style="background: ${color}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap;">$${prop.price}</div>`,
+                        iconSize: [60, 24],
+                        iconAnchor: [30, 12]
+                    });
+                    
+                    L.marker([prop.location.lat, prop.location.lng], { icon })
+                        .addTo(mapInstanceRef.current)
+                        .on('click', () => onSelectProperty(prop));
+                });
+
+            }, [properties, onSelectProperty]);
+
+            return <div ref={mapRef} className="map-container rounded-xl shadow-inner bg-gray-100" />;
+        };
+
+        // Property Card Component
+        const PropertyCard = ({ property, onClick }) => {
+            const isShop = property.type === 'shop';
+            
+            return (
+                <div 
+                    onClick={() => onClick(property)}
+                    className="property-card bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 mb-4 cursor-pointer active:scale-[0.98] transition-transform"
+                >
+                    <div className="relative h-48 overflow-hidden">
+                        <img src={property.images[0]} alt={property.title} className="w-full h-full object-cover" />
+                        <div className="absolute top-3 right-3 bg-white px-3 py-1 rounded-lg text-sm font-bold shadow-md">
+                            ${property.price}<span className="text-xs font-normal text-gray-500">/mo</span>
+                        </div>
+                        <div className="absolute top-3 left-3 bg-black bg-opacity-60 text-white px-3 py-1 rounded-lg text-xs font-medium capitalize backdrop-blur-sm">
+                            {property.type}
+                        </div>
+                    </div>
+                    <div className="p-4">
+                        <h3 className="font-bold text-gray-900 text-lg mb-1 line-clamp-1">{property.title}</h3>
+                        <div className="flex items-center text-gray-500 text-sm mb-3">
+                            <Icon name="location" size={14} className="mr-1 flex-shrink-0" />
+                            <span className="truncate">{property.location.address}</span>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                            {!isShop ? (
+                                <>
+                                    <span className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-md">
+                                        <Icon name="home" size={14} />
+                                        {property.beds} beds
+                                    </span>
+                                    <span className="bg-gray-100 px-2 py-1 rounded-md">{property.sqft} sqft</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-md">
+                                        <Icon name="briefcase" size={14} />
+                                        {property.businessType}
+                                    </span>
+                                    <span className="bg-gray-100 px-2 py-1 rounded-md">{property.size}</span>
+                                </>
+                            )}
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                            <div className="flex items-center gap-1">
+                                <Icon name="star" size={14} className="text-yellow-500 fill-yellow-500" />
+                                <span className="font-semibold text-sm">{property.rating}</span>
+                                <span className="text-gray-400 text-xs">({property.reviews})</span>
+                            </div>
+                            <div className="flex gap-1">
+                                {property.amenities.slice(0, 2).map((amenity, idx) => (
+                                    <span key={idx} className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full font-medium">
+                                        {amenity}
+                                    </span>
+                                ))}
+                                {property.amenities.length > 2 && (
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                                        +{property.amenities.length - 2}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Property Detail Modal
+        const PropertyDetail = ({ property, onClose, role, onBook }) => {
+            const isShop = property.type === 'shop';
+            const isOwner = role === 'owner';
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
+                    <div className="min-h-screen bg-white pb-24">
+                        {/* Header Image */}
+                        <div className="relative h-72 sticky top-0">
+                            <img src={property.images[0]} alt={property.title} className="w-full h-full object-cover" />
+                            <button 
+                                onClick={onClose}
+                                className="absolute top-4 left-4 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+                            >
+                                <Icon name="arrowLeft" size={20} />
+                            </button>
+                            <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black to-transparent opacity-60"></div>
+                            <div className="absolute bottom-4 left-4 right-4 text-white">
+                                <h1 className="text-2xl font-bold mb-1">{property.title}</h1>
+                                <div className="flex items-center text-white text-opacity-90">
+                                    <Icon name="location" size={16} className="mr-1" />
+                                    {property.location.address}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-5 -mt-4 bg-white rounded-t-3xl relative">
+                            {/* Price */}
+                            <div className="flex justify-between items-center mb-6">
+                                <div>
+                                    <span className="text-3xl font-bold text-gray-900">${property.price}</span>
+                                    <span className="text-gray-500">/month</span>
+                                </div>
+                                <div className="flex items-center gap-1 bg-yellow-50 px-3 py-1 rounded-full">
+                                    <Icon name="star" size={16} className="text-yellow-500 fill-yellow-500" />
+                                    <span className="font-semibold text-yellow-700">{property.rating}</span>
+                                    <span className="text-yellow-600 text-sm">({property.reviews})</span>
+                                </div>
+                            </div>
+
+                            {/* Quick Stats */}
+                            <div className="grid grid-cols-3 gap-3 mb-6">
+                                {!isShop ? (
+                                    <>
+                                        <div className="text-center p-4 bg-gray-50 rounded-2xl">
+                                            <div className="text-2xl font-bold text-gray-900 mb-1">{property.beds}</div>
+                                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Bedrooms</div>
+                                        </div>
+                                        <div className="text-center p-4 bg-gray-50 rounded-2xl">
+                                            <div className="text-2xl font-bold text-gray-900 mb-1">{property.baths}</div>
+                                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Bathrooms</div>
+                                        </div>
+                                        <div className="text-center p-4 bg-gray-50 rounded-2xl">
+                                            <div className="text-2xl font-bold text-gray-900 mb-1">{property.sqft}</div>
+                                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Sq Ft</div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="text-center p-4 bg-gray-50 rounded-2xl">
+                                            <div className="text-lg font-bold text-gray-900 mb-1">{property.size}</div>
+                                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Space</div>
+                                        </div>
+                                        <div className="text-center p-4 bg-gray-50 rounded-2xl">
+                                            <div className="text-lg font-bold text-gray-900 mb-1">24/7</div>
+                                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Access</div>
+                                        </div>
+                                        <div className="text-center p-4 bg-gray-50 rounded-2xl">
+                                            <div className="text-lg font-bold text-gray-900 mb-1">High</div>
+                                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Visibility</div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Amenities */}
+                            <div className="mb-6">
+                                <h3 className="font-bold text-lg mb-3">Amenities</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {property.amenities.map((amenity, idx) => (
+                                        <span key={idx} className="px-4 py-2 bg-gray-100 rounded-xl text-sm font-medium text-gray-700">
+                                            {amenity}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Description */}
+                            <div className="mb-6">
+                                <h3 className="font-bold text-lg mb-3">About this place</h3>
+                                <p className="text-gray-600 leading-relaxed">{property.description}</p>
+                            </div>
+
+                            {/* Owner */}
+                            <div className="mb-6">
+                                <h3 className="font-bold text-lg mb-3">Hosted by</h3>
+                                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl">
+                                    <div className="w-14 h-14 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
+                                        {property.owner.charAt(0)}
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="font-bold text-gray-900 text-lg">{property.owner}</div>
+                                        <div className="text-sm text-gray-500">Superhost • Joined 2021</div>
+                                    </div>
+                                    <button className="p-3 bg-white rounded-full shadow-sm active:scale-95 transition-transform">
+                                        <Icon name="message" size={20} className="text-gray-600" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Bottom Action */}
+                        {!isOwner && (
+                            <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 max-w-[480px] mx-auto z-50">
+                                <div className="flex gap-3">
+                                    <button className="flex-1 py-3.5 border-2 border-gray-200 rounded-xl font-semibold flex items-center justify-center gap-2 text-gray-700 active:scale-95 transition-transform">
+                                        <Icon name="phone" size={20} />
+                                        Call
+                                    </button>
+                                    <button 
+                                        onClick={() => onBook(property)}
+                                        className="flex-[2] py-3.5 bg-gray-900 text-white rounded-xl font-semibold active:scale-95 transition-transform shadow-lg"
+                                    >
+                                        Book Now
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // Filter Component
+        const FilterPanel = ({ isOpen, onClose, filters, onApplyFilters, role }) => {
+            const [localFilters, setLocalFilters] = useState(filters);
+
+            if (!isOpen) return null;
+
+            const propertyTypes = role === 'business' 
+                ? ['All', 'Shop', 'Office', 'Warehouse']
+                : ['All', 'Room', 'House', 'Apartment'];
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end">
+                    <div className="bg-white w-full rounded-t-3xl p-6 slide-up max-h-[85vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold">Filters</h2>
+                            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
+                                <Icon name="x" size={24} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div>
+                                <label className="font-semibold mb-3 block text-gray-900">Price Range ($/month)</label>
+                                <div className="flex gap-3 items-center">
+                                    <input 
+                                        type="number" 
+                                        placeholder="Min"
+                                        className="flex-1 p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400"
+                                        value={localFilters.minPrice}
+                                        onChange={e => setLocalFilters({...localFilters, minPrice: e.target.value})}
+                                    />
+                                    <span className="text-gray-400">-</span>
+                                    <input 
+                                        type="number" 
+                                        placeholder="Max"
+                                        className="flex-1 p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400"
+                                        value={localFilters.maxPrice}
+                                        onChange={e => setLocalFilters({...localFilters, maxPrice: e.target.value})}
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="font-semibold mb-3 block text-gray-900">Property Type</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {propertyTypes.map(type => (
+                                        <button
+                                            key={type}
+                                            onClick={() => setLocalFilters({...localFilters, type})}
+                                            className={`px-4 py-2.5 rounded-xl border-2 transition-all font-medium ${localFilters.type === type ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-700 hover:border-gray-400'}`}
+                                        >
+                                            {type}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="font-semibold mb-3 block text-gray-900">Max Distance: {localFilters.distance}km</label>
+                                <input 
+                                    type="range" 
+                                    min="1" 
+                                    max="50" 
+                                    value={localFilters.distance}
+                                    onChange={e => setLocalFilters({...localFilters, distance: e.target.value})}
+                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-900"
+                                />
+                                <div className="flex justify-between text-sm text-gray-500 mt-2">
+                                    <span>1 km</span>
+                                    <span>50 km</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="font-semibold mb-3 block text-gray-900">Amenities</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {['WiFi', 'Parking', 'AC', 'Furnished', 'Pet Friendly', 'Gym', 'Pool', 'Security'].map(amenity => (
+                                        <button
+                                            key={amenity}
+                                            onClick={() => {
+                                                const current = localFilters.amenities || [];
+                                                const updated = current.includes(amenity)
+                                                    ? current.filter(a => a !== amenity)
+                                                    : [...current, amenity];
+                                                setLocalFilters({...localFilters, amenities: updated});
+                                            }}
+                                            className={`px-4 py-2 rounded-xl border-2 transition-all font-medium ${(localFilters.amenities || []).includes(amenity) ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-700 hover:border-gray-400'}`}
+                                        >
+                                            {amenity}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 pt-6 mt-6 border-t sticky bottom-0 bg-white">
+                            <button 
+                                onClick={() => setLocalFilters({ type: 'All', minPrice: '', maxPrice: '', distance: 10, amenities: [] })}
+                                className="flex-1 py-3.5 border-2 border-gray-300 rounded-xl font-semibold text-gray-600 active:scale-95 transition-transform"
+                            >
+                                Reset
+                            </button>
+                            <button 
+                                onClick={() => { onApplyFilters(localFilters); onClose(); }}
+                                className="flex-[2] py-3.5 bg-gray-900 text-white rounded-xl font-semibold active:scale-95 transition-transform shadow-lg"
+                            >
+                                Show Results
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Owner Dashboard
+        const OwnerDashboard = ({ properties, bookings, onAddProperty, onEditProperty, onDeleteProperty, onManageBooking }) => {
+            const [activeTab, setActiveTab] = useState('listings');
+            const [showForm, setShowForm] = useState(false);
+            const [editingProperty, setEditingProperty] = useState(null);
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const isShop = formData.get('type') === 'shop';
+                
+                const property = {
+                    id: editingProperty ? editingProperty.id : Date.now(),
+                    title: formData.get('title'),
+                    type: formData.get('type'),
+                    price: parseInt(formData.get('price')),
+                    location: { 
+                        address: formData.get('address'),
+                        lat: 40.7128 + (Math.random() - 0.5) * 0.1,
+                        lng: -74.0060 + (Math.random() - 0.5) * 0.1
+                    },
+                    images: ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400'],
+                    amenities: formData.get('amenities').split(',').map(a => a.trim()).filter(Boolean),
+                    description: formData.get('description'),
+                    available: true,
+                    owner: 'You',
+                    rating: editingProperty ? editingProperty.rating : 0,
+                    reviews: editingProperty ? editingProperty.reviews : 0
+                };
+
+                if (isShop) {
+                    property.size = formData.get('size') + ' sqft';
+                    property.businessType = formData.get('businessType') || 'Retail';
+                } else {
+                    property.beds = parseInt(formData.get('beds')) || 1;
+                    property.baths = parseInt(formData.get('baths')) || 1;
+                    property.sqft = parseInt(formData.get('sqft')) || 500;
+                }
+
+                if (editingProperty) {
+                    onEditProperty(property);
+                } else {
+                    onAddProperty(property);
+                }
+                setShowForm(false);
+                setEditingProperty(null);
+            };
+
+            const openEdit = (prop) => {
+                setEditingProperty(prop);
+                setShowForm(true);
+            };
+
+            const closeForm = () => {
+                setShowForm(false);
+                setEditingProperty(null);
+            };
+
+            return (
+                <div className="pb-24">
+                    {/* Stats Cards */}
+                    <div className="grid grid-cols-3 gap-3 mb-6">
+                        <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-4 rounded-2xl text-center text-white shadow-lg">
+                            <div className="text-3xl font-bold mb-1">{properties.length}</div>
+                            <div className="text-xs font-medium opacity-90">Listings</div>
+                        </div>
+                        <div className="bg-gradient-to-br from-green-500 to-green-600 p-4 rounded-2xl text-center text-white shadow-lg">
+                            <div className="text-3xl font-bold mb-1">
+                                {bookings.filter(b => b.status === 'approved').length}
+                            </div>
+                            <div className="text-xs font-medium opacity-90">Active</div>
+                        </div>
+                        <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-4 rounded-2xl text-center text-white shadow-lg">
+                            <div className="text-3xl font-bold mb-1">
+                                {bookings.filter(b => b.status === 'pending').length}
+                            </div>
+                            <div className="text-xs font-medium opacity-90">Pending</div>
+                        </div>
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="flex gap-2 mb-6 bg-gray-100 p-1.5 rounded-2xl">
+                        <button 
+                            onClick={() => setActiveTab('listings')}
+                            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === 'listings' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            My Listings
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('bookings')}
+                            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === 'bookings' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            Bookings
+                        </button>
+                    </div>
+
+                    {activeTab === 'listings' ? (
+                        <div className="space-y-4">
+                            <button 
+                                onClick={() => setShowForm(true)}
+                                className="w-full py-4 border-2 border-dashed border-gray-300 rounded-2xl flex items-center justify-center gap-2 text-gray-600 hover:border-gray-900 hover:text-gray-900 transition-all active:scale-[0.98]"
+                            >
+                                <Icon name="plus" size={24} />
+                                <span className="font-semibold">Add New Property</span>
+                            </button>
+                            
+                            {properties.map(prop => (
+                                <div key={prop.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+                                    <div className="relative h-48">
+                                        <img src={prop.images[0]} alt={prop.title} className="w-full h-full object-cover" />
+                                        <div className="absolute top-3 right-3 flex gap-2">
+                                            <button 
+                                                onClick={() => openEdit(prop)}
+                                                className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+                                            >
+                                                <Icon name="edit" size={18} />
+                                            </button>
+                                            <button 
+                                                onClick={() => onDeleteProperty(prop.id)}
+                                                className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg text-red-500 active:scale-95 transition-transform"
+                                            >
+                                                <Icon name="trash" size={18} />
+                                            </button>
+                                        </div>
+                                        <div className="absolute top-3 left-3">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${prop.available ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                                                {prop.available ? 'Available' : 'Booked'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="p-4">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <h3 className="font-bold text-gray-900 text-lg">{prop.title}</h3>
+                                            <span className="font-bold text-gray-900">${prop.price}<span className="text-sm font-normal text-gray-500">/mo</span></span>
+                                        </div>
+                                        <p className="text-sm text-gray-500 mb-2">{prop.location.address}</p>
+                                        <div className="flex gap-2 text-xs">
+                                            <span className="bg-gray-100 px-2 py-1 rounded-md text-gray-600 capitalize">{prop.type}</span>
+                                            {!prop.type.includes('shop') && (
+                                                <span className="bg-gray-100 px-2 py-1 rounded-md text-gray-600">{prop.beds} beds</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {bookings.length === 0 ? (
+                                <div className="text-center py-12 text-gray-400">
+                                    <Icon name="briefcase" size={48} className="mx-auto mb-3 opacity-30" />
+                                    <p>No bookings yet</p>
+                                </div>
+                            ) : (
+                                bookings.map(booking => (
+                                    <div key={booking.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div>
+                                                <h3 className="font-bold text-gray-900 text-lg">New Booking Request</h3>
+                                                <p className="text-sm text-gray-500">From {booking.tenant}</p>
+                                            </div>
+                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                                booking.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                booking.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                                'bg-red-100 text-red-700'
+                                            }`}>
+                                                {booking.status}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-gray-600 mb-4">Requested on {booking.date}</p>
+                                        {booking.status === 'pending' && (
+                                            <div className="flex gap-3">
+                                                <button 
+                                                    onClick={() => onManageBooking(booking.id, 'approved')}
+                                                    className="flex-1 py-3 bg-green-600 text-white rounded-xl font-semibold active:scale-95 transition-transform shadow-md"
+                                                >
+                                                    Accept
+                                                </button>
+                                                <button 
+                                                    onClick={() => onManageBooking(booking.id, 'rejected')}
+                                                    className="flex-1 py-3 bg-red-600 text-white rounded-xl font-semibold active:scale-95 transition-transform shadow-md"
+                                                >
+                                                    Reject
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    )}
+
+                    {/* Add/Edit Form Modal */}
+                    {showForm && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
+                            <div className="min-h-screen px-4 py-8">
+                                <div className="bg-white rounded-3xl max-w-md mx-auto p-6 shadow-2xl">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h2 className="text-xl font-bold">
+                                            {editingProperty ? 'Edit Property' : 'Add New Property'}
+                                        </h2>
+                                        <button 
+                                            onClick={closeForm}
+                                            className="p-2 hover:bg-gray-100 rounded-full active:scale-95 transition-transform"
+                                        >
+                                            <Icon name="x" size={24} />
+                                        </button>
+                                    </div>
+                                    
+                                    <form onSubmit={handleSubmit} className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-semibold mb-2 text-gray-700">Property Type</label>
+                                            <select 
+                                                name="type" 
+                                                defaultValue={editingProperty?.type || 'room'} 
+                                                className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 bg-white"
+                                            >
+                                                <option value="room">Room</option>
+                                                <option value="house">House</option>
+                                                <option value="shop">Shop/Commercial</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div>
+                                            <label className="block text-sm font-semibold mb-2 text-gray-700">Title</label>
+                                            <input 
+                                                name="title" 
+                                                defaultValue={editingProperty?.title}
+                                                className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400" 
+                                                placeholder="e.g., Modern Studio Apartment"
+                                                required
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold mb-2 text-gray-700">Monthly Rent ($)</label>
+                                            <input 
+                                                name="price" 
+                                                type="number"
+                                                defaultValue={editingProperty?.price}
+                                                className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400" 
+                                                placeholder="800"
+                                                required
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold mb-2 text-gray-700">Address</label>
+                                            <input 
+                                                name="address" 
+                                                defaultValue={editingProperty?.location?.address}
+                                                className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400" 
+                                                placeholder="Full address"
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <div>
+                                                <label className="block text-xs font-semibold mb-1 text-gray-700">Beds</label>
+                                                <input name="beds" type="number" defaultValue={editingProperty?.beds} className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400" placeholder="1" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-semibold mb-1 text-gray-700">Baths</label>
+                                                <input name="baths" type="number" defaultValue={editingProperty?.baths} className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400" placeholder="1" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-semibold mb-1 text-gray-700">Sqft</label>
+                                                <input name="sqft" type="number" defaultValue={editingProperty?.sqft} className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400" placeholder="500" />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold mb-2 text-gray-700">Amenities (comma separated)</label>
+                                            <input 
+                                                name="amenities" 
+                                                defaultValue={editingProperty?.amenities?.join(', ')}
+                                                className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400" 
+                                                placeholder="WiFi, AC, Parking, etc."
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold mb-2 text-gray-700">Description</label>
+                                            <textarea 
+                                                name="description" 
+                                                defaultValue={editingProperty?.description}
+                                                className="w-full p-3 border border-gray-200 rounded-xl h-24 resize-none focus:outline-none focus:border-gray-400" 
+                                                placeholder="Describe your property..."
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-gray-400 transition-colors cursor-pointer active:scale-[0.98]">
+                                            <Icon name="camera" size={32} className="mx-auto text-gray-400 mb-2" />
+                                            <p className="text-sm text-gray-600 font-medium">Upload property images</p>
+                                            <p className="text-xs text-gray-400 mt-1">Tap to select photos</p>
+                                        </div>
+
+                                        <button 
+                                            type="submit" 
+                                            className="w-full py-4 bg-gray-900 text-white rounded-xl font-semibold active:scale-95 transition-transform shadow-lg mt-6"
+                                        >
+                                            {editingProperty ? 'Save Changes' : 'List Property'}
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // Notification Component
+        const Notification = ({ message, type, onClose }) => {
+            useEffect(() => {
+                const timer = setTimeout(onClose, 3000);
+                return () => clearTimeout(timer);
+            }, [onClose]);
+
+            return (
+                <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-full shadow-xl flex items-center gap-2 slide-up ${type === 'success' ? 'bg-green-600 text-white' : 'bg-gray-900 text-white'}`}>
+                    <Icon name={type === 'success' ? 'check' : 'bell'} size={18} />
+                    <span className="text-sm font-semibold">{message}</span>
+                </div>
+            );
+        };
+
+        // Main App
+        const App = () => {
+            const [currentRole, setCurrentRole] = useState('bachelor');
+            const [isRoleSelectorOpen, setIsRoleSelectorOpen] = useState(false);
+            const [activeTab, setActiveTab] = useState('explore');
+            const [viewMode, setViewMode] = useState('list');
+            const [selectedProperty, setSelectedProperty] = useState(null);
+            const [isFilterOpen, setIsFilterOpen] = useState(false);
+            const [filters, setFilters] = useState({
+                type: 'All',
+                minPrice: '',
+                maxPrice: '',
+                distance: 10,
+                amenities: []
+            });
+            const [properties, setProperties] = useState(MOCK_PROPERTIES);
+            const [bookings, setBookings] = useState(MOCK_BOOKINGS);
+            const [notification, setNotification] = useState(null);
+            const [userLocation] = useState({ lat: 40.7128, lng: -74.0060 });
+
+            const filteredProperties = properties.filter(prop => {
+                if (currentRole === 'bachelor' && prop.type === 'shop') return false;
+                if (currentRole === 'family' && (prop.type === 'room' || prop.type === 'shop')) return false;
+                if (currentRole === 'business' && prop.type !== 'shop') return false;
+                
+                if (filters.type !== 'All' && prop.type !== filters.type.toLowerCase()) return false;
+                if (filters.minPrice && prop.price < parseInt(filters.minPrice)) return false;
+                if (filters.maxPrice && prop.price > parseInt(filters.maxPrice)) return false;
+                if (filters.amenities.length > 0) {
+                    const hasAllAmenities = filters.amenities.every(a => prop.amenities.includes(a));
+                    if (!hasAllAmenities) return false;
+                }
+                return true;
+            });
+
+            const showNotification = (message, type = 'info') => {
+                setNotification({ message, type });
+            };
+
+            const handleBook = (property) => {
+                const newBooking = {
+                    id: Date.now(),
+                    propertyId: property.id,
+                    status: 'pending',
+                    date: new Date().toISOString().split('T')[0],
+                    tenant: 'You'
+                };
+                setBookings([newBooking, ...bookings]);
+                setSelectedProperty(null);
+                showNotification('Booking request sent successfully!', 'success');
+            };
+
+            const handleAddProperty = (property) => {
+                setProperties([property, ...properties]);
+                showNotification('Property listed successfully!', 'success');
+            };
+
+            const handleEditProperty = (updatedProperty) => {
+                setProperties(properties.map(p => p.id === updatedProperty.id ? updatedProperty : p));
+                showNotification('Property updated!', 'success');
+            };
+
+            const handleDeleteProperty = (id) => {
+                setProperties(properties.filter(p => p.id !== id));
+                showNotification('Property removed', 'info');
+            };
+
+            const handleManageBooking = (bookingId, status) => {
+                setBookings(bookings.map(b => b.id === bookingId ? {...b, status} : b));
+                showNotification(`Booking ${status}!`, 'success');
+            };
+
+            const handleRoleChange = (newRole) => {
+                console.log('Changing role to:', newRole);
+                setCurrentRole(newRole);
+                // Reset view when changing roles
+                setViewMode('list');
+                setActiveTab('explore');
+            };
+
+            const getRoleColor = () => {
+                switch(currentRole) {
+                    case 'bachelor': return 'role-gradient-bachelor';
+                    case 'family': return 'role-gradient-family';
+                    case 'business': return 'role-gradient-business';
+                    case 'owner': return 'role-gradient-owner';
+                    default: return 'bg-gray-900';
+                }
+            };
+
+            const getRoleLabel = () => {
+                return currentRole.charAt(0).toUpperCase() + currentRole.slice(1);
+            };
+
+            return (
+                <div className="mobile-container bg-gray-50">
+                    {/* Header */}
+                    <header className="sticky top-0 z-40 bg-white shadow-sm">
+                        <div className="px-4 py-3 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-xl font-bold text-gray-900">RentSpot</h1>
+                                <button 
+                                    onClick={() => setIsRoleSelectorOpen(true)}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-bold text-white ${getRoleColor()} flex items-center gap-1.5 shadow-md active:scale-95 transition-transform`}
+                                >
+                                    {getRoleLabel()}
+                                    <Icon name="menu" size={12} />
+                                </button>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <button className="relative p-2 hover:bg-gray-100 rounded-full active:scale-95 transition-transform">
+                                    <Icon name="bell" size={20} />
+                                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                                </button>
+                                <div className="w-9 h-9 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                    U
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Main Content */}
+                    <main className="p-4 pb-24">
+                        {currentRole === 'owner' ? (
+                            <OwnerDashboard 
+                                properties={properties.filter(p => p.owner === 'You' || p.owner === 'John Doe')}
+                                bookings={bookings}
+                                onAddProperty={handleAddProperty}
+                                onEditProperty={handleEditProperty}
+                                onDeleteProperty={handleDeleteProperty}
+                                onManageBooking={handleManageBooking}
+                            />
+                        ) : (
+                            <>
+                                {/* Search */}
+                                <div className="relative mb-4">
+                                    <input 
+                                        type="text" 
+                                        placeholder={`Search ${currentRole === 'business' ? 'shops' : 'properties'} nearby...`}
+                                        className="w-full pl-11 pr-12 py-3.5 bg-white rounded-2xl border border-gray-200 focus:outline-none focus:border-gray-400 shadow-sm text-gray-700 placeholder-gray-400"
+                                    />
+                                    <Icon name="search" size={20} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                    <button 
+                                        onClick={() => setIsFilterOpen(true)}
+                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 p-2 hover:bg-gray-100 rounded-xl active:scale-95 transition-transform"
+                                    >
+                                        <Icon name="filter" size={20} className="text-gray-600" />
+                                    </button>
+                                </div>
+
+                                {/* View Toggle */}
+                                <div className="flex gap-2 mb-4 bg-white p-1.5 rounded-2xl shadow-sm">
+                                    <button 
+                                        onClick={() => setViewMode('list')}
+                                        className={`flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${viewMode === 'list' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}
+                                    >
+                                        <Icon name="list" size={16} />
+                                        List
+                                    </button>
+                                    <button 
+                                        onClick={() => setViewMode('map')}
+                                        className={`flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${viewMode === 'map' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}
+                                    >
+                                        <Icon name="map" size={16} />
+                                        Map
+                                    </button>
+                                </div>
+
+                                {/* Results Count */}
+                                <div className="flex justify-between items-center mb-3 px-1">
+                                    <h2 className="font-bold text-gray-800">
+                                        {filteredProperties.length} {currentRole === 'business' ? 'Spaces' : 'Properties'}
+                                    </h2>
+                                    <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-lg">Within {filters.distance}km</span>
+                                </div>
+
+                                {/* Content */}
+                                {viewMode === 'map' ? (
+                                    <div className="rounded-2xl overflow-hidden shadow-lg border border-gray-200 bg-white">
+                                        <MapView 
+                                            properties={filteredProperties} 
+                                            onSelectProperty={setSelectedProperty}
+                                            userLocation={userLocation}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {filteredProperties.map(property => (
+                                            <PropertyCard 
+                                                key={property.id} 
+                                                property={property} 
+                                                onClick={setSelectedProperty}
+                                            />
+                                        ))}
+                                        {filteredProperties.length === 0 && (
+                                            <div className="text-center py-12 text-gray-400">
+                                                <Icon name="search" size={48} className="mx-auto mb-3 opacity-30" />
+                                                <p className="font-medium">No properties found</p>
+                                                <p className="text-sm mt-1">Try adjusting your filters</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </main>
+
+                    {/* Bottom Navigation */}
+                    <nav className="bottom-nav glass-effect border-t border-gray-200 px-6 py-2 pb-safe">
+                        <div className="flex justify-around items-center">
+                            <button 
+                                onClick={() => setActiveTab('explore')}
+                                className={`flex flex-col items-center gap-1 p-2 rounded-xl active:scale-95 transition-all ${activeTab === 'explore' ? 'text-gray-900' : 'text-gray-400'}`}
+                            >
+                                <div className={`p-1.5 rounded-lg ${activeTab === 'explore' ? 'bg-gray-100' : ''}`}>
+                                    <Icon name="search" size={22} />
+                                </div>
+                                <span className="text-[10px] font-bold">Explore</span>
+                            </button>
+                            <button 
+                                onClick={() => setActiveTab('trips')}
+                                className={`flex flex-col items-center gap-1 p-2 rounded-xl active:scale-95 transition-all ${activeTab === 'trips' ? 'text-gray-900' : 'text-gray-400'}`}
+                            >
+                                <div className={`p-1.5 rounded-lg ${activeTab === 'trips' ? 'bg-gray-100' : ''}`}>
+                                    <Icon name="heart" size={22} />
+                                </div>
+                                <span className="text-[10px] font-bold">{currentRole === 'owner' ? 'Bookings' : 'Saved'}</span>
+                            </button>
+                            <button 
+                                onClick={() => setActiveTab('messages')}
+                                className={`flex flex-col items-center gap-1 p-2 rounded-xl active:scale-95 transition-all ${activeTab === 'messages' ? 'text-gray-900' : 'text-gray-400'}`}
+                            >
+                                <div className={`p-1.5 rounded-lg ${activeTab === 'messages' ? 'bg-gray-100' : ''}`}>
+                                    <Icon name="message" size={22} />
+                                </div>
+                                <span className="text-[10px] font-bold">Chat</span>
+                            </button>
+                            <button 
+                                onClick={() => setActiveTab('profile')}
+                                className={`flex flex-col items-center gap-1 p-2 rounded-xl active:scale-95 transition-all ${activeTab === 'profile' ? 'text-gray-900' : 'text-gray-400'}`}
+                            >
+                                <div className={`p-1.5 rounded-lg ${activeTab === 'profile' ? 'bg-gray-100' : ''}`}>
+                                    <Icon name="user" size={22} />
+                                </div>
+                                <span className="text-[10px] font-bold">Profile</span>
+                            </button>
+                        </div>
+                    </nav>
+
+                    {/* Role Selector */}
+                    <RoleSelector 
+                        currentRole={currentRole}
+                        onSelectRole={handleRoleChange}
+                        isOpen={isRoleSelectorOpen}
+                        onClose={() => setIsRoleSelectorOpen(false)}
+                    />
+
+                    {/* Property Detail */}
+                    {selectedProperty && (
+                        <PropertyDetail 
+                            property={selectedProperty}
+                            onClose={() => setSelectedProperty(null)}
+                            role={currentRole}
+                            onBook={handleBook}
+                        />
+                    )}
+
+                    {/* Filter Panel */}
+                    <FilterPanel 
+                        isOpen={isFilterOpen}
+                        onClose={() => setIsFilterOpen(false)}
+                        filters={filters}
+                        onApplyFilters={setFilters}
+                        role={currentRole}
+                    />
+
+                    {/* Notification */}
+                    {notification && (
+                        <Notification 
+                            message={notification.message}
+                            type={notification.type}
+                            onClose={() => setNotification(null)}
+                        />
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
