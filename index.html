@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RentSpot India - Unified Rental Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        
+        /* Hide scrollbar for clean mobile look */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .role-badge {
+            transition: all 0.3s ease;
+        }
+        
+        /* Map Simulation */
+        .map-container {
+            background-image: url('https://mt1.google.com/vt/lyrs=m&x=131&y=94&z=8'); /* Generic map tile */
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+        
+        .property-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+    </style>
+</head>
+<body class="text-gray-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- AUTHENTICATION SCREEN -->
+    <div id="auth-screen" class="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-6">
+        <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 border border-gray-100">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <i class="fas fa-home text-white text-2xl"></i>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900">RentSpot</h1>
+                <p class="text-gray-500 mt-2">India's Smart Rental Ecosystem</p>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex mb-6 bg-gray-100 p-1 rounded-lg">
+                <button onclick="switchAuthTab('login')" id="tab-login" class="flex-1 py-2 rounded-md text-sm font-medium transition-colors bg-white shadow text-indigo-600">Login</button>
+                <button onclick="switchAuthTab('register')" id="tab-register" class="flex-1 py-2 rounded-md text-sm font-medium text-gray-500 transition-colors">Register</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                    <input type="email" id="login-email" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition" placeholder="user@example.com" value="demo@rentspot.in">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input type="password" id="login-pass" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition" placeholder="••••••••" value="password">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200">Sign In</button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                    <input type="text" id="reg-name" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="John Doe">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                    <input type="email" id="reg-email" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="user@example.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Phone (for contact)</label>
+                    <input type="tel" id="reg-phone" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="+91 98765 43210">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input type="password" id="reg-pass" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200">Create Account</button>
+            </form>
+            
+            <div class="mt-6 text-center text-xs text-gray-400">
+                <p>Demo Credentials: demo@rentspot.in / password</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APPLICATION (Hidden initially) -->
+    <div id="main-app" class="hidden flex-col h-full">
+        
+        <!-- Header -->
+        <header class="bg-white shadow-sm z-20 px-4 py-3 flex items-center justify-between sticky top-0">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">R</div>
+                <div>
+                    <h1 class="text-xl font-bold text-gray-900 leading-tight">RentSpot</h1>
+                    <div class="relative group">
+                        <button id="current-role-display" class="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md flex items-center gap-1">
+                            <span id="header-role-text">Bachelor</span> <i class="fas fa-chevron-down text-[10px]"></i>
+                        </button>
+                        <!-- Role Switcher Dropdown -->
+                        <div class="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 hidden group-hover:block overflow-hidden">
+                            <div class="p-2 text-xs text-gray-400 uppercase font-bold tracking-wider">Switch Role</div>
+                            <button onclick="switchRole('Bachelor')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-gray-700">Bachelor</button>
+                            <button onclick="switchRole('Family')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-gray-700">Family</button>
+                            <button onclick="switchRole('Business User')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-gray-700">Business User</button>
+                            <button onclick="switchRole('Property Owner')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-indigo-600 font-medium border-t">Property Owner</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <button onclick="openNotifications()" class="relative text-gray-600 hover:text-indigo-600 transition">
+                    <i class="fas fa-bell text-xl"></i>
+                    <span id="notif-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center hidden">0</span>
+                </button>
+                <button onclick="logout()" class="text-gray-400 hover:text-red-500 transition">
+                    <i class="fas fa-sign-out-alt text-lg"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Search & Filter Bar -->
+        <div class="bg-white border-b border-gray-200 px-4 py-3 space-y-3">
+            <div class="relative">
+                <i class="fas fa-search absolute left-3 top-3.5 text-gray-400"></i>
+                <input type="text" id="search-input" oninput="filterProperties()" placeholder="Search location (e.g., Koramangala, Mumbai)" class="w-full pl-10 pr-10 py-3 bg-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <button class="absolute right-3 top-3 text-gray-400"><i class="fas fa-sliders-h"></i></button>
+            </div>
+            
+            <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                <select id="filter-type" onchange="filterProperties()" class="bg-gray-100 text-xs font-medium px-3 py-2 rounded-lg outline-none">
+                    <option value="all">All Types</option>
+                    <option value="Room">Room</option>
+                    <option value="House">House</option>
+                    <option value="Shop">Shop/Commercial</option>
+                </select>
+                <select id="filter-price" onchange="filterProperties()" class="bg-gray-100 text-xs font-medium px-3 py-2 rounded-lg outline-none">
+                    <option value="all">Any Price</option>
+                    <option value="0-5000">Under ₹5,000</option>
+                    <option value="5000-15000">₹5k - ₹15k</option>
+                    <option value="15000-999999">₹15k+</option>
+                </select>
+                <button onclick="toggleView()" id="view-toggle-btn" class="ml-auto bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-2 shadow-md shadow-indigo-200">
+                    <i class="fas fa-map"></i> <span>Map</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <main class="flex-1 overflow-y-auto bg-gray-50 relative" id="main-scroll">
+            
+            <!-- VIEW: List -->
+            <div id="view-list" class="p-4 space-y-4 pb-24">
+                <div class="flex justify-between items-end mb-2">
+                    <h2 class="text-lg font-bold text-gray-800">Nearby Properties</h2>
+                    <span class="text-xs text-gray-500" id="result-count">Loading...</span>
+                </div>
+                <div id="properties-container" class="space-y-4">
+                    <!-- Properties injected here -->
+                </div>
+            </div>
+
+            <!-- VIEW: Map (Simulated) -->
+            <div id="view-map" class="hidden h-full w-full map-container relative">
+                <div class="absolute top-4 left-4 right-4 bg-white/90 backdrop-blur p-3 rounded-lg shadow-lg z-10">
+                    <p class="text-xs font-bold text-gray-600"><i class="fas fa-location-arrow text-indigo-500 mr-1"></i> Showing properties near you</p>
+                </div>
+                <!-- Simulated Pins -->
+                <div id="map-pins" class="w-full h-full relative"></div>
+            </div>
+
+            <!-- Floating Action Button for Owner -->
+            <button id="fab-add" onclick="openAddModal()" class="hidden absolute bottom-20 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition z-30">
+                <i class="fas fa-plus"></i>
+            </button>
+
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bg-white border-t border-gray-200 px-6 py-3 flex justify-between items-center z-20">
+            <button onclick="setTab('explore')" class="nav-btn active flex flex-col items-center gap-1 text-indigo-600">
+                <i class="fas fa-compass text-xl"></i>
+                <span class="text-[10px] font-medium">Explore</span>
+            </button>
+            <button onclick="setTab('saved')" class="nav-btn flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500">
+                <i class="fas fa-heart text-xl"></i>
+                <span class="text-[10px] font-medium">Saved</span>
+            </button>
+            <button onclick="setTab('trips')" class="nav-btn flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500">
+                <i class="fas fa-suitcase text-xl"></i>
+                <span class="text-[10px] font-medium">Bookings</span>
+            </button>
+            <button onclick="setTab('profile')" class="nav-btn flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500">
+                <i class="fas fa-user text-xl"></i>
+                <span class="text-[10px] font-medium">Profile</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- MODAL: Property Details -->
+    <div id="modal-details" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-details')"></div>
+        <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl h-[90vh] overflow-y-auto animate-slide-up">
+            <button onclick="closeModal('modal-details')" class="absolute top-4 right-4 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center z-10"><i class="fas fa-times"></i></button>
+            
+            <div id="detail-content">
+                <!-- Content injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Add Property (Owner Only) -->
+    <div id="modal-add" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-add')"></div>
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl z-10 overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 class="font-bold text-lg">List New Property</h3>
+                <button onclick="closeModal('modal-add')"><i class="fas fa-times text-gray-500"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto">
+                <form id="add-property-form" onsubmit="handleAddProperty(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Property Title</label>
+                        <input type="text" name="title" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                            <select name="type" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none">
+                                <option value="Room">Room</option>
+                                <option value="House">House</option>
+                                <option value="Shop">Shop/Commercial</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Rent (₹/month)</label>
+                            <input type="number" name="price" required class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Location / Area</label>
+                        <input type="text" name="location" required placeholder="e.g., Sector 12, Noida" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Amenities (comma separated)</label>
+                        <input type="text" name="amenities" placeholder="WiFi, AC, Parking" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Property Image</label>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:bg-gray-50 transition relative">
+                            <input type="file" id="prop-image" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="previewImage(this)">
+                            <div id="image-preview-area">
+                                <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-2"></i>
+                                <p class="text-xs text-gray-500">Click to upload photo</p>
+                            </div>
+                            <img id="image-preview-tag" class="hidden w-full h-32 object-cover rounded-md mt-2">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold shadow-lg mt-2">Publish Listing</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Notifications -->
+    <div id="modal-notif" class="fixed inset-0 z-50 hidden flex items-start justify-center pt-20 px-4">
+        <div class="absolute inset-0 bg-black/40" onclick="closeModal('modal-notif')"></div>
+        <div class="bg-white w-full max-w-sm rounded-xl shadow-2xl z-10 overflow-hidden">
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="font-bold">Notifications</h3>
+                <button onclick="closeModal('modal-notif')"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="notifications-list" class="max-h-80 overflow-y-auto p-2">
+                <!-- Notifications injected here -->
+                <div class="p-4 text-center text-gray-500 text-sm">No new notifications</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- STATE MANAGEMENT ---
+        const state = {
+            currentUser: null,
+            role: 'Bachelor', // Default
+            view: 'list', // 'list' or 'map'
+            properties: [],
+            bookings: [],
+            notifications: []
+        };
+
+        // Seed Data (Simulating a Global Database)
+        const seedData = [
+            {
+                id: 1,
+                title: "Cozy Studio near Metro",
+                type: "Room",
+                price: 8000,
+                location: "Koramangala, Bangalore",
+                image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80",
+                amenities: ["WiFi", "Laundry", "AC"],
+                ownerId: "owner1@demo.com",
+                ownerName: "Rahul Sharma",
+                ownerPhone: "+91 98765 43210",
+                rating: 4.5,
+                reviews: 12
+            },
+            {
+                id: 2,
+                title: "2BHK Family Apartment",
+                type: "House",
+                price: 22000,
+                location: "Powai, Mumbai",
+                image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80",
+                amenities: ["Parking", "Gym", "Security"],
+                ownerId: "owner2@demo.com",
+                ownerName: "Priya Patel",
+                ownerPhone: "+91 99887 76655",
+                rating: 4.8,
+                reviews: 5
+            },
+            {
+                id: 3,
+                title: "Retail Shop Main Road",
+                type: "Shop",
+                price: 15000,
+                location: "Connaught Place, Delhi",
+                image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80",
+                amenities: ["High Footfall", "Storage", "Attached Bath"],
+                ownerId: "owner3@demo.com",
+                ownerName: "Amit Singh",
+                ownerPhone: "+91 98765 12345",
+                rating: 4.2,
+                reviews: 8
+            }
+        ];
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            // Load from local storage if available
+            const savedProps = localStorage.getItem('rs_properties');
+            state.properties = savedProps ? JSON.parse(savedProps) : [...seedData];
+            
+            const savedUser = localStorage.getItem('rs_user');
+            if (savedUser) {
+                state.currentUser = JSON.parse(savedUser);
+                enterApp();
+            }
+        };
+
+        // --- AUTHENTICATION LOGIC ---
+        function switchAuthTab(tab) {
+            document.getElementById('login-form').classList.toggle('hidden', tab !== 'login');
+            document.getElementById('register-form').classList.toggle('hidden', tab !== 'register');
+            document.getElementById('tab-login').className = tab === 'login' ? "flex-1 py-2 rounded-md text-sm font-medium transition-colors bg-white shadow text-indigo-600" : "flex-1 py-2 rounded-md text-sm font-medium text-gray-500 transition-colors";
+            document.getElementById('tab-register').className = tab === 'register' ? "flex-1 py-2 rounded-md text-sm font-medium transition-colors bg-white shadow text-indigo-600" : "flex-1 py-2 rounded-md text-sm font-medium text-gray-500 transition-colors";
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value;
+            const phone = document.getElementById('reg-phone').value;
+            const pass = document.getElementById('reg-pass').value;
+
+            // Simple simulation
+            state.currentUser = { name, email, phone, id: Date.now() };
+            localStorage.setItem('rs_user', JSON.stringify(state.currentUser));
+            
+            // Add welcome notification
+            addNotification("Welcome to RentSpot! Please select your role from the top menu.");
+            
+            enterApp();
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            // Mock login
+            state.currentUser = { 
+                name: "Demo User", 
+                email: document.getElementById('login-email').value, 
+                phone: "+91 90000 00000",
+                id: "user_" + Date.now()
+            };
+            localStorage.setItem('rs_user', JSON.stringify(state.currentUser));
+            enterApp();
+        }
+
+        function logout() {
+            localStorage.removeItem('rs_user');
+            location.reload();
+        }
+
+        function enterApp() {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            document.getElementById('main-app').classList.add('flex');
+            updateUIForRole();
+            renderProperties();
+        }
+
+        // --- ROLE MANAGEMENT ---
+        function switchRole(role) {
+            state.role = role;
+            // Visual feedback
+            const btn = document.getElementById('header-role-text');
+            btn.innerText = role;
+            btn.parentElement.classList.add('scale-95');
+            setTimeout(() => btn.parentElement.classList.remove('scale-95'), 200);
+            
+            updateUIForRole();
+            renderProperties();
+            
+            // If owner, maybe switch to list view automatically if map was open
+            if(role === 'Property Owner' && state.view === 'map') toggleView();
+        }
+
+        function updateUIForRole() {
+            const fab = document.getElementById('fab-add');
+            const searchPlaceholder = document.getElementById('search-input');
+            
+            if (state.role === 'Property Owner') {
+                fab.classList.remove('hidden');
+                searchPlaceholder.placeholder = "Manage your listings...";
+            } else if (state.role === 'Business User') {
+                fab.classList.add('hidden');
+                searchPlaceholder.placeholder = "Search shops & commercial spaces...";
+            } else {
+                fab.classList.add('hidden');
+                searchPlaceholder.placeholder = "Search rooms & houses...";
+            }
+        }
+
+        // --- PROPERTY LOGIC ---
+        function renderProperties() {
+            const container = document.getElementById('properties-container');
+            const mapPins = document.getElementById('map-pins');
+            container.innerHTML = '';
+            mapPins.innerHTML = '';
+
+            // Filter Logic
+            const search = document.getElementById('search-input').value.toLowerCase();
+            const typeFilter = document.getElementById('filter-type').value;
+            const priceFilter = document.getElementById('filter-price').value;
+
+            let filtered = state.properties.filter(p => {
+                // Role based filtering
+                if (state.role === 'Bachelor' && p.type === 'Shop') return false;
+                if (state.role === 'Family' && p.type === 'Room') return false; // Families usually want full houses
+                if (state.role === 'Business User' && (p.type === 'Room' || p.type === 'House')) return false;
+                
+                // Text search
+                if (search && !p.location.toLowerCase().includes(search) && !p.title.toLowerCase().includes(search)) return false;
+                
+                // Type filter
+                if (typeFilter !== 'all' && p.type !== typeFilter) return false;
+
+                // Price filter
+                if (priceFilter !== 'all') {
+                    const [min, max] = priceFilter.split('-').map(Number);
+                    if (p.price < min || p.price > max) return false;
+                }
+
+                return true;
+            });
+
+            // Owner View: Show only MY listings
+            if (state.role === 'Property Owner') {
+                filtered = state.properties.filter(p => p.ownerId === state.currentUser.email);
+            }
+
+            document.getElementById('result-count').innerText = `${filtered.length} Properties Found`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-10">
+                        <div class="text-6xl mb-4">🏠</div>
+                        <h3 class="text-lg font-bold text-gray-700">No properties found</h3>
+                        <p class="text-gray-500 text-sm">Try adjusting your filters or check back later.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            filtered.forEach(p => {
+                // List Card
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden property-card cursor-pointer fade-in';
+                card.onclick = () => openDetails(p.id);
+                card.innerHTML = `
+                    <div class="relative h-48">
+                        <img src="${p.image}" class="w-full h-full object-cover" alt="${p.title}">
+                        <div class="absolute top-3 left-3 bg-black/50 backdrop-blur text-white text-xs font-bold px-2 py-1 rounded">
+                            ${p.type}
+                        </div>
+                        ${p.ownerId === state.currentUser.email ? '<div class="absolute top-3 right-3 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">MY LISTING</div>' : ''}
+                        <div class="absolute bottom-3 right-3 bg-white text-gray-900 font-bold px-3 py-1 rounded-lg shadow-lg">
+                            ₹${p.price.toLocaleString()}<span class="text-xs font-normal text-gray-500">/mo</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-bold text-lg text-gray-900 mb-1">${p.title}</h3>
+                        <p class="text-sm text-gray-500 mb-3"><i class="fas fa-map-marker-alt mr-1"></i> ${p.location}</p>
+                        
+                        <div class="flex items-center justify-between border-t border-gray-100 pt-3">
+                            <div class="flex items-center gap-3 text-xs text-gray-600">
+                                <span class="flex items-center gap-1"><i class="fas fa-bed text-indigo-500"></i> ${p.type === 'Shop' ? 'Commercial' : '1-2 Beds'}</span>
+                                <span class="flex items-center gap-1"><i class="fas fa-ruler-combined text-indigo-500"></i> ${Math.floor(Math.random() * 500 + 300)} sqft</span>
+                            </div>
+                            <div class="flex items-center gap-1 text-yellow-500 text-xs font-bold">
+                                <i class="fas fa-star"></i> ${p.rating} <span class="text-gray-400 font-normal">(${p.reviews})</span>
+                            </div>
+                        </div>
+                        ${p.ownerId !== state.currentUser.email ? `
+                        <div class="mt-3 pt-3 border-t border-gray-50 flex justify-between items-center">
+                            <span class="text-xs text-gray-500">by ${p.ownerName}</span>
+                            <button class="text-indigo-600 text-xs font-bold">Contact Owner</button>
+                        </div>` : ''}
+                    </div>
+                `;
+                container.appendChild(card);
+
+                // Map Pin Simulation
+                const pin = document.createElement('div');
+                pin.className = 'absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer hover:scale-110 transition';
+                // Random positioning for demo
+                pin.style.top = Math.random() * 80 + 10 + '%';
+                pin.style.left = Math.random() * 80 + 10 + '%';
+                pin.innerHTML = `
+                    <div class="bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded-lg shadow-lg relative">
+                        ₹${(p.price/1000).toFixed(1)}k
+                        <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-indigo-600 rotate-45"></div>
+                    </div>
+                `;
+                pin.onclick = () => openDetails(p.id);
+                mapPins.appendChild(pin);
+            });
+        }
+
+        function filterProperties() {
+            renderProperties();
+        }
+
+        function toggleView() {
+            const list = document.getElementById('view-list');
+            const map = document.getElementById('view-map');
+            const btn = document.getElementById('view-toggle-btn');
+            
+            if (state.view === 'list') {
+                state.view = 'map';
+                list.classList.add('hidden');
+                map.classList.remove('hidden');
+                btn.innerHTML = '<i class="fas fa-list"></i> <span>List</span>';
+                btn.classList.replace('bg-indigo-600', 'bg-gray-800');
+            } else {
+                state.view = 'list';
+                map.classList.add('hidden');
+                list.classList.remove('hidden');
+                btn.innerHTML = '<i class="fas fa-map"></i> <span>Map</span>';
+                btn.classList.replace('bg-gray-800', 'bg-indigo-600');
+            }
+        }
+
+        // --- OWNER ACTIONS ---
+        let tempImageBase64 = '';
+
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    tempImageBase64 = e.target.result;
+                    document.getElementById('image-preview-tag').src = e.target.result;
+                    document.getElementById('image-preview-tag').classList.remove('hidden');
+                    document.getElementById('image-preview-area').classList.add('hidden');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function openAddModal() {
+            document.getElementById('modal-add').classList.remove('hidden');
+        }
+
+        function handleAddProperty(e) {
+            e.preventDefault();
+            const form = e.target;
+            
+            const newProp = {
+                id: Date.now(),
+                title: form.title.value,
+                type: form.type.value,
+                price: Number(form.price.value),
+                location: form.location.value,
+                amenities: form.amenities.value.split(','),
+                image: tempImageBase64 || "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80", // Fallback
+                ownerId: state.currentUser.email,
+                ownerName: state.currentUser.name,
+                ownerPhone: state.currentUser.phone,
+                rating: 0,
+                reviews: 0
+            };
+
+            state.properties.unshift(newProp); // Add to top
+            localStorage.setItem('rs_properties', JSON.stringify(state.properties));
+            
+            // Reset
+            form.reset();
+            document.getElementById('image-preview-tag').classList.add('hidden');
+            document.getElementById('image-preview-area').classList.remove('hidden');
+            tempImageBase64 = '';
+            
+            closeModal('modal-add');
+            renderProperties();
+            addNotification("Your property has been listed successfully!");
+        }
+
+        // --- DETAILS & BOOKING ---
+        function openDetails(id) {
+            const p = state.properties.find(x => x.id === id);
+            if (!p) return;
+
+            const modal = document.getElementById('modal-details');
+            const content = document.getElementById('detail-content');
+            
+            const isOwner = p.ownerId === state.currentUser.email;
+            const isBooked = state.bookings.find(b => b.propId === id && b.userId === state.currentUser.email);
+
+            content.innerHTML = `
+                <div class="relative h-72">
+                    <img src="${p.image}" class="w-full h-full object-cover">
+                    <div class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/70 to-transparent"></div>
+                    <div class="absolute bottom-4 left-4 text-white">
+                        <h2 class="text-2xl font-bold">${p.title}</h2>
+                        <p class="flex items-center gap-2 text-sm opacity-90"><i class="fas fa-map-marker-alt"></i> ${p.location}</p>
+                    </div>
+                </div>
+                
+                <div class="p-6 space-y-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm text-gray-500">Monthly Rent</p>
+                            <p class="text-3xl font-bold text-indigo-600">₹${p.price.toLocaleString()}</p>
+                        </div>
+                        <div class="bg-indigo-50 px-3 py-1 rounded-lg text-indigo-700 font-bold text-sm">
+                            ${p.type}
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="font-bold text-gray-900 mb-2">Description</h3>
+                        <p class="text-gray-600 text-sm leading-relaxed">
+                            Excellent ${p.type.toLowerCase()} available for rent in ${p.location}. 
+                            Fully equipped with modern amenities. Suitable for ${state.role.toLowerCase()}.
+                            Contact owner for immediate booking.
+                        </p>
+                    </div>
+
+                    <div>
+                        <h3 class="font-bold text-gray-900 mb-3">Amenities</h3>
+                        <div class="flex flex-wrap gap-2">
+                            ${p.amenities.map(a => `<span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-medium">${a}</span>`).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Owner Contact Card -->
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                        <h3 class="font-bold text-gray-900 mb-3 text-sm uppercase tracking-wide">Owner Information</h3>
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">
+                                ${p.ownerName.charAt(0)}
+                            </div>
+                            <div>
+                                <p class="font-bold text-gray-900">${p.ownerName}</p>
+                                <p class="text-xs text-gray-500">Property Owner</p>
+                            </div>
+                        </div>
+                        <a href="tel:${p.ownerPhone}" class="flex items-center justify-center gap-2 w-full bg-white border border-gray-200 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-50 transition">
+                            <i class="fas fa-phone text-green-500"></i> ${p.ownerPhone}
+                        </a>
+                    </div>
+
+                    ${!isOwner ? `
+                        <button onclick="bookProperty(${p.id})" id="book-btn" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition ${isBooked ? 'opacity-50 cursor-not-allowed' : ''}">
+                            ${isBooked ? 'Request Sent' : 'Book Now'}
+                        </button>
+                    ` : `
+                        <div class="bg-yellow-50 border border-yellow-100 p-4 rounded-xl text-yellow-800 text-sm">
+                            <i class="fas fa-info-circle mr-1"></i> This is your listing. You can manage it in the 'Profile' tab.
+                        </div>
+                    `}
+                </div>
+            `;
+            
+            modal.classList.remove('hidden');
+        }
+
+        function bookProperty(id) {
+            // Add to bookings
+            state.bookings.push({
+                propId: id,
+                userId: state.currentUser.email,
+                status: 'Pending',
+                date: new Date().toLocaleDateString()
+            });
+
+            // Notify Owner (Simulation)
+            const prop = state.properties.find(p => p.id === id);
+            addNotification(`Booking request sent to ${prop.ownerName} for ${prop.title}.`);
+            
+            // Update UI
+            const btn = document.getElementById('book-btn');
+            btn.innerText = 'Request Sent';
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            btn.onclick = null;
+        }
+
+        // --- NOTIFICATIONS ---
+        function addNotification(msg) {
+            state.notifications.unshift({ msg, time: new Date().toLocaleTimeString() });
+            updateNotifBadge();
+        }
+
+        function updateNotifBadge() {
+            const badge = document.getElementById('notif-badge');
+            if (state.notifications.length > 0) {
+                badge.classList.remove('hidden');
+                badge.innerText = state.notifications.length;
+            }
+        }
+
+        function openNotifications() {
+            const list = document.getElementById('notifications-list');
+            if (state.notifications.length === 0) {
+                list.innerHTML = '<div class="p-4 text-center text-gray-500 text-sm">No notifications</div>';
+            } else {
+                list.innerHTML = state.notifications.map(n => `
+                    <div class="p-3 border-b border-gray-50 hover:bg-gray-50">
+                        <p class="text-sm text-gray-800">${n.msg}</p>
+                        <p class="text-xs text-gray-400 mt-1">${n.time}</p>
+                    </div>
+                `).join('');
+            }
+            document.getElementById('modal-notif').classList.remove('hidden');
+        }
+
+        // --- UTILS ---
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function setTab(tab) {
+            // Visual active state for nav
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-indigo-600', 'active');
+                btn.classList.add('text-gray-400');
+            });
+            event.currentTarget.classList.remove('text-gray-400');
+            event.currentTarget.classList.add('text-indigo-600', 'active');
+            
+            // In a real app, this would switch main views. 
+            // For this single file demo, we keep it on explore but could expand.
+            if(tab === 'profile') alert("Profile View: Here you would see your account details and settings.");
+        }
+
+    </script>
+</body>
+</html>
